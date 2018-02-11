@@ -13,6 +13,8 @@ import org.apache.commons.codec.digest.DigestUtils;
  *
  */
 public class App {
+
+	// https://blockexplorer.com/rawblock/0000000000000000e067a478024addfecdc93628978aa52d91fabd4292982a50
 	static String[] TX_IDS = new String[] { "00baf6626abc2df808da36a518c69f09b0d2ed0a79421ccfde4f559d2e42128b",
 			"91c5e9f288437262f218c60f986e8bc10fb35ab3b9f6de477ff0eb554da89dea",
 			"46685c94b82b84fa05b6a0f36de6ff46475520113d5cb8c6fb060e043a0dbc5c",
@@ -117,10 +119,18 @@ public class App {
 		System.out.println(merkle(Arrays.asList(TX_IDS)));
 	}
 
+	/**
+	 * Hash pairs of items recursively until a single value is obtained
+	 * 
+	 * @param hash
+	 * @return
+	 * @throws DecoderException
+	 */
 	private static String merkle(List<String> hash) throws DecoderException {
 		if (hash.size() == 1)
 			return hash.get(0);
 		List<String> newHash = new ArrayList<>();
+		// Process pairs. For odd length, the last is skipped
 		for (int i = 0; i < hash.size() - 1; i += 2) {
 			newHash.add(hash2(hash.get(i), hash.get(i + 1)));
 		}
@@ -130,40 +140,52 @@ public class App {
 		return merkle(newHash);
 	}
 
+	/**
+	 * 
+	 * @param a
+	 * @param b
+	 * @return
+	 * @throws DecoderException
+	 */
 	private static String hash2(String a, String b) throws DecoderException {
 		byte[] hexA, hexB;
 		byte[] hexARev, hexBRev, combined;
 		byte[] sha256, sha256Rev;
-		DigestUtils digest = new DigestUtils();
 		
 		hexA = Hex.decodeHex(a.toCharArray());
 		hexB = Hex.decodeHex(b.toCharArray());
-		
+
+		// Reverse inputs before and after hashing
+		// due to big-endian / little-endian nonsense
 		hexARev = new byte[hexA.length];
 		hexBRev = new byte[hexB.length];
-		
+
+		// reverse hexA
 		for (int i = 0; i < hexA.length; ++i) {
-			byte temp = hexA[hexA.length - (i+1)];   
-			hexARev[i] = temp;                    
+			byte temp = hexA[hexA.length - (i + 1)];
+			hexARev[i] = temp;
 		}
-		
+
+		// reverse hexB
 		for (int j = 0; j < hexB.length; ++j) {
-			byte temp = hexB[hexB.length - (j+1)];
+			byte temp = hexB[hexB.length - (j + 1)];
 			hexBRev[j] = temp;
 		}
-		
+
+		// now combine the two reversed hex codes
 		combined = new byte[hexA.length + hexB.length];
 		System.arraycopy(hexARev, 0, combined, 0, hexA.length);
 		System.arraycopy(hexBRev, 0, combined, hexA.length, hexB.length);
-		
-		sha256 = digest.sha256(digest.sha256(combined));
-		
+
+		sha256 = DigestUtils.sha256(DigestUtils.sha256(combined));
+
+		// we must reverse the hash to put back in BIG-ENDIAN
 		sha256Rev = new byte[sha256.length];
 		for (int i = 0; i < sha256.length; ++i) {
-			byte temp = sha256[sha256.length - (1+i)];
+			byte temp = sha256[sha256.length - (1 + i)];
 			sha256Rev[i] = temp;
 		}
-		
+
 		return Hex.encodeHexString(sha256Rev);
 	}
 }
